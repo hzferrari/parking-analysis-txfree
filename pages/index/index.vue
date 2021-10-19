@@ -63,19 +63,6 @@
 			 * 根据picker选择的日期，获取某一天的天气数据，存到数据库
 			 */
 			getWeatherByDate() {
-				uniCloud.callFunction({
-					name: 'getWeatherByTimestamp',
-					data: {
-						startTime: new Date('2021-10-01 00:00:00').getTime(),
-						endTime: new Date('2021-10-03 00:00:00').getTime()
-					}
-				}).then((res) => {
-					console.log("res:", res)
-
-				})
-				
-				return
-				
 				
 				let day = this.date;
 
