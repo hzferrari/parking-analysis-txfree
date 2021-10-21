@@ -8,13 +8,14 @@ const db = uniCloud.database()
 let offsetTimstamp = 8 * 60 * 60 * 1000; // 服务器偏移的时间戳，8个小时
 
 /**
- * 设定每天早上10:00点触发
+ * 设定每天0点触发
  */
 exports.main = async (event, context) => {
 	//event为客户端上传的参数
 	// console.log('event : ', event)
 
-	let resData = await getByTimestampToday()
+	// 更新昨天一整天的
+	let resData = await getByTimestampLastday()
 
 	await insertToDataBase(resData);
 
@@ -23,7 +24,7 @@ exports.main = async (event, context) => {
 };
 
 async function insertToDataBase(data) {
-console.log('data:',data)
+	console.log('data:', data)
 	const collect = db.collection('weather-data')
 
 	let dbCmd = db.command;
@@ -47,11 +48,12 @@ console.log('data:',data)
 
 }
 
-async function getByTimestampToday() {
+async function getByTimestampLastday() {
 	return new Promise(async resolve => {
 
-		// 今天
-		let day = util.formatDate(util.getOffsetDate(8), "yyyy-MM-dd");
+		// 昨天的日期
+		let day = new Date().getTime() - 60 * 60 * 24 * 1000;
+		day = util.formatDate(new Date(day + offsetTimstamp), "yyyy-MM-dd");
 
 		let appkey = "62110";
 		let sign = "0543c988db3b078a67b85726b9b845de";
