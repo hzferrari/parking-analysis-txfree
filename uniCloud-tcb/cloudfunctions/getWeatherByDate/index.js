@@ -4,6 +4,9 @@ const db = uniCloud.database()
 
 let offsetTimstamp = 8 * 60 * 60 * 1000; // 服务器偏移的时间戳，8个小时
 
+/**
+ * 通过日期yyyy-MM-dd获取当天的天气。（这个云函数没有上传，仅本地使用到）
+ */
 exports.main = async (event, context) => {
 	//event为客户端上传的参数
 	// console.log('event : ', event)
@@ -20,7 +23,7 @@ exports.main = async (event, context) => {
 
 	let appkey = "62110";
 	let sign = "0543c988db3b078a67b85726b9b845de";
-	let cityId = "101280301"; // 惠州cityId
+	let cityId = "101280306"; // 惠城区cityId
 	let date = dataObj.date;
 
 	const res = await uniCloud.httpclient.request(

@@ -57,7 +57,7 @@ async function getByTimestampLastday() {
 
 		let appkey = "62110";
 		let sign = "0543c988db3b078a67b85726b9b845de";
-		let cityId = "101280301"; // 惠州cityId
+		let cityId = "101280306"; // 惠城区cityId
 		let date = day;
 
 		const res = await uniCloud.httpclient.request(
