@@ -50,6 +50,10 @@ async function insertToDataBase(data) {
 
 }
 
+/**
+ * 20211101 对应云函数getOnedayDataAutoToday，和/pages/index/index里的handle()方法
+ * @param {Object} res
+ */
 function handleData(res) {
 	return new Promise(resolve => {
 		let oneDay = {};
@@ -142,6 +146,8 @@ function handleData(res) {
 			oneDay.diffInRushTimeValue =
 				oneDay.p7first0Value - oneDay.rushTimeStartValue - shift;
 		}
+		// 没有上班高峰期的情况，可能是周末节假日，也可能是到了9点半p7停车场仍没有停满。这里需要处理第二种情况，以供图表显示。
+		handle930Value(oneDay);
 
 		// p6
 		if (p6first0Index !== undefined) {
@@ -180,6 +186,55 @@ function handleData(res) {
 		// return oneDay
 		resolve(oneDay)
 	})
+}
+
+/**
+ * 处理上班9点30时刻的情况。
+ * 没有上班高峰期的情况，可能是周末节假日，也可能是到了9点半p7停车场仍没有停满。这里需要处理第二种情况，以供图表显示。
+ */
+function handle930Value(oneDay) {
+	if (oneDay.diffInRushTimeValue || !oneDay.rushTimeStartValue) {
+		// 有上班高峰期，无需处理
+		// 没有rushTimeStartValue，无需处理
+		return
+	}
+
+	let p7RemainAt930 = undefined;
+	let timestampAt930 = undefined;
+
+	for (let i = 0, len = oneDay.dataList.length; i < len; i++) {
+		let time = oneDay.dataList[i].time; // 格式："2021-10-25 01:35:00"
+
+		let hh = parseInt(time.split(" ")[1].split(":")[0]); //获取小时部分
+		let mm = parseInt(time.split(" ")[1].split(":")[1]); //获取分钟部分
+
+		// 循环找到9:30的数据，如果没有9:30这一分钟的数据则找它之前的且离9:30最近的时间点的数据
+		if (hh === 9 && mm <= 30) {
+			p7RemainAt930 = oneDay.dataList[i].p7;
+			timestampAt930 = oneDay.dataList[i].timestamp;
+
+		} else if (hh === 9 && mm > 30) {
+			break
+		}
+	}
+
+	// 剩余车位数小于100则认为是工作日
+	if (p7RemainAt930 !== undefined && p7RemainAt930 < 100) {
+		oneDay.p7RemainAt930 = p7RemainAt930;
+
+		// 这里的不是真的p7first0Value，但是为了图表（折线）显示字段统一需要赋值
+		// 时间就是9点30左右（oneDay.dataList[i].timestamp）
+		oneDay.p7first0Value = _normalizeDatetime(timestampAt930);
+
+		let shift = 100; // 人为造一个偏移量，让柱子离折线之间产生一点距离，比较好看
+
+		oneDay.diffInRushTimeValue =
+			oneDay.p7first0Value - oneDay.rushTimeStartValue - shift;
+
+	}
+
+	// console.log("oneDay.date: ", oneDay.date, util.formatDate(new Date(timestampAt930), "hh:mm:ss"));
+
 }
 
 /**
@@ -233,13 +288,13 @@ function getByTimestampLastday() {
 
 			}).catch((err) => {
 				resolve(false)
-				
+
 				console.error('getDataByTimestamp2:', err)
 			})
 
 		}).catch((err) => {
 			resolve(false)
-			
+
 			console.error('getDataByTimestamp:', err)
 		})
 

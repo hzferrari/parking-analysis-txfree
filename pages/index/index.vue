@@ -16,19 +16,19 @@
 			</picker>
 		</view>
 
-		<view style="margin:30rpx auto;">
-			<button type="primary" :loading="isBtnLoading" @click="getWeatherByDate()">getWeatherByDate</button>
-			<picker mode="date" :value="date" :start="startDate" :end="endDate" @change="bindDateChange">
-				<view class="uni-input">getWeatherByDate: {{date}}</view>
-			</picker>
-		</view>
-
 		<button type="primary" :loading="isBtnLoading" @click="handleOnedayData">handleOnedayData</button>
 
 		<button type="primary" :loading="isBtnLoading" @click="handleOnedayDataAll">handleOnedayDataAll</button>
 
 		<button type="primary" :loading="isBtnLoading"
 			@click="testGetOnedayDataByTimestamp">testGetOnedayDataByTimestamp</button>
+
+		<view style="margin:30rpx auto;">
+			<button type="primary" :loading="isBtnLoading" @click="getWeatherByDate()">getWeatherByDate</button>
+			<picker mode="date" :value="date" :start="startDate" :end="endDate" @change="bindDateChange">
+				<view class="uni-input">getWeatherByDate: {{date}}</view>
+			</picker>
+		</view>
 	</view>
 </template>
 
@@ -63,7 +63,7 @@
 			 * 根据picker选择的日期，获取某一天的天气数据，存到数据库
 			 */
 			getWeatherByDate() {
-				
+
 				let day = this.date;
 
 				uniCloud.callFunction({
@@ -268,6 +268,7 @@
 						let oneDay = handleData(res);
 						console.log('oneDay: ', oneDay)
 
+						// 存入数据库
 						uniCloud.callFunction({
 							name: 'getOnedayData',
 							data: oneDay
@@ -285,6 +286,10 @@
 
 				let vm = this;
 
+				/**
+				 * 20211101 对应云函数getOnedayData、getOnedayDataAuto
+				 * @param {Object} res
+				 */
 				function handleData(res) {
 
 					let oneDay = {};
@@ -316,7 +321,8 @@
 							// 到这里就可以结束了
 							// break;
 						}
-						// 计算p7早高峰起点（假设p7剩余车位300时是早高峰的开始）
+
+						// 计算早高峰起点（假设p7剩余车位300时是早高峰的开始）
 						if (!rushTimeStartIndex && oneDay.dataList[i].p7 <= 300) {
 							rushTimeStartIndex = i;
 						}
@@ -338,18 +344,12 @@
 							oneDay.dataList[i].p5 > 0) {
 							p5firstNot0Index = i;
 						}
-
-
 					}
 
 					// 记录index
 					oneDay.rushTimeStartIndex = rushTimeStartIndex;
 					oneDay.p7first0Index = p7first0Index;
 					oneDay.p7firstNot0Index = p7firstNot0Index;
-					oneDay.p6first0Index = p6first0Index;
-					oneDay.p6firstNot0Index = p6firstNot0Index;
-					oneDay.p5first0Index = p5first0Index;
-					oneDay.p5firstNot0Index = p5firstNot0Index;
 
 					// 时间转换成数值
 					if (rushTimeStartIndex !== undefined) {
@@ -382,6 +382,9 @@
 						oneDay.diffInRushTimeValue =
 							oneDay.p7first0Value - oneDay.rushTimeStartValue - shift;
 					}
+					// 没有上班高峰期的情况，可能是周末节假日，也可能是到了9点半p7停车场仍没有停满。这里需要处理第二种情况，以供图表显示。
+					vm.handle930Value(oneDay);
+
 
 					// p6
 					if (p6first0Index !== undefined) {
@@ -419,6 +422,54 @@
 
 					return oneDay
 				}
+
+			},
+			/**
+			 * 处理上班9点30时刻的情况。
+			 * 没有上班高峰期的情况，可能是周末节假日，也可能是到了9点半p7停车场仍没有停满。这里需要处理第二种情况，以供图表显示。
+			 */
+			handle930Value(oneDay) {
+				if (oneDay.diffInRushTimeValue || !oneDay.rushTimeStartValue) {
+					// 有上班高峰期，无需处理
+					// 没有rushTimeStartValue，无需处理
+					return
+				}
+
+				let p7RemainAt930 = undefined;
+				let timestampAt930 = undefined;
+
+				for (let i = 0, len = oneDay.dataList.length; i < len; i++) {
+					let time = oneDay.dataList[i].time; // 格式："2021-10-25 01:35:00"
+
+					let hh = parseInt(time.split(" ")[1].split(":")[0]); //获取小时部分
+					let mm = parseInt(time.split(" ")[1].split(":")[1]); //获取分钟部分
+
+					// 循环找到9:30的数据，如果没有9:30这一分钟的数据则找它之前的且离9:30最近的时间点的数据
+					if (hh === 9 && mm <= 30) {
+						p7RemainAt930 = oneDay.dataList[i].p7;
+						timestampAt930 = oneDay.dataList[i].timestamp;
+
+					} else if (hh === 9 && mm > 30) {
+						break
+					}
+				}
+
+				// 剩余车位数小于100则认为是工作日
+				if (p7RemainAt930 !== undefined && p7RemainAt930 < 100) {
+					oneDay.p7RemainAt930 = p7RemainAt930;
+
+					// 这里的不是真的p7first0Value，但是为了图表（折线）显示字段统一需要赋值
+					// 时间就是9点30左右（oneDay.dataList[i].timestamp）
+					oneDay.p7first0Value = this._normalizeDatetime(timestampAt930);
+
+					let shift = 100; // 人为造一个偏移量，让柱子离折线之间产生一点距离，比较好看
+
+					oneDay.diffInRushTimeValue =
+						oneDay.p7first0Value - oneDay.rushTimeStartValue - shift;
+
+				}
+
+				// console.log("oneDay.date: ", oneDay.date, util.formatDate(new Date(timestampAt930), "hh:mm:ss"));
 
 			},
 			handleOnedayDataAll() {
