@@ -222,8 +222,8 @@ function handle930Value(oneDay) {
 		}
 	}
 
-	// 剩余车位数小于100则认为是工作日
-	if (p7RemainAt930 !== undefined && p7RemainAt930 < 100) {
+	// 剩余车位数小于200则认为是工作日
+	if (p7RemainAt930 !== undefined && p7RemainAt930 < 200) {
 		oneDay.p7RemainAt930 = p7RemainAt930;
 
 		// 这里的不是真的p7first0Value，但是为了图表（折线）显示字段统一需要赋值

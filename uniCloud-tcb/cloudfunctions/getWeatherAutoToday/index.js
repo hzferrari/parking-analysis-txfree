@@ -8,7 +8,7 @@ const db = uniCloud.database()
 let offsetTimstamp = 8 * 60 * 60 * 1000; // 服务器偏移的时间戳，8个小时
 
 /**
- * 设定每天早上10:00点触发
+ * 设定每天早上9:15点触发
  */
 exports.main = async (event, context) => {
 	//event为客户端上传的参数
